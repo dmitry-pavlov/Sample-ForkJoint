@@ -1,9 +1,11 @@
-namespace ForkJoint.Components
+namespace ForkJoint.Components.Activities
 {
     using System;
     using System.Threading.Tasks;
     using Automatonymous;
     using GreenPipes;
+    using Internals;
+    using MassTransit;
     using MassTransit.Courier;
     using MassTransit.Courier.Contracts;
 
@@ -29,29 +31,34 @@ namespace ForkJoint.Components
             visitor.Visit(this);
         }
 
-        public async Task Execute(BehaviorContext<FutureState, T> context, Behavior<FutureState, T> next)
+        public Task Execute(BehaviorContext<FutureState, T> context, Behavior<FutureState, T> next)
         {
-            ConsumeEventContext<FutureState, T> consumeContext = context.CreateConsumeContext();
-
-            // this will need to be done by a consumer at some point, to handle retry/fault handling
-
-            var trackingNumber = context.Instance.CorrelationId;
-
-            var builder = new RoutingSlipBuilder(trackingNumber);
-
-            builder.AddSubscription(consumeContext.ReceiveContext.InputAddress, RoutingSlipEvents.Completed | RoutingSlipEvents.Faulted);
-
-            await _planner.PlanItinerary(consumeContext.Data, builder).ConfigureAwait(false);
-
-            var routingSlip = builder.Build();
-
-            await consumeContext.Execute(routingSlip).ConfigureAwait(false);
+            return Execute(context.CreateFutureConsumeContext());
         }
 
         public Task Faulted<TException>(BehaviorExceptionContext<FutureState, T, TException> context, Behavior<FutureState, T> next)
             where TException : Exception
         {
             return next.Faulted(context);
+        }
+
+        async Task Execute(FutureConsumeContext<T> consumeContext)
+        {
+            // this will need to be done by a consumer at some point, to handle retry/fault handling
+
+            var trackingNumber = NewId.NextGuid();
+
+            var builder = new RoutingSlipBuilder(trackingNumber);
+
+            builder.AddVariable(nameof(consumeContext.FutureId), consumeContext.FutureId);
+
+            builder.AddSubscription(consumeContext.ReceiveContext.InputAddress, RoutingSlipEvents.Completed | RoutingSlipEvents.Faulted);
+
+            await _planner.PlanItinerary(consumeContext.Message, builder).ConfigureAwait(false);
+
+            var routingSlip = builder.Build();
+
+            await consumeContext.Execute(routingSlip).ConfigureAwait(false);
         }
     }
 }
