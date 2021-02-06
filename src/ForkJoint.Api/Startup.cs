@@ -111,6 +111,14 @@ namespace ForkJoint.Api
                         if (IsRunningInContainer)
                             cfg.Host("rabbitmq");
 
+                        cfg.Host("localhost", "fj", h =>
+                        {
+                            h.Username("guest");
+                            h.Password("guest");
+                        });
+
+
+
                         cfg.UseRabbitMqMessageScheduler();
 
                         cfg.ConfigureEndpoints(context);
