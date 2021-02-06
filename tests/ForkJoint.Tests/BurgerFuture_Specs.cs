@@ -1,5 +1,6 @@
 namespace ForkJoint.Tests
 {
+    using System;
     using System.Threading.Tasks;
     using Api.Components.Activities;
     using Api.Components.Futures;
@@ -30,6 +31,7 @@ namespace ForkJoint.Tests
             Response<BurgerCompleted> response = await client.GetResponse<BurgerCompleted>(new
             {
                 OrderId = orderId,
+                OrderLineId = orderLineId,
                 Burger = new Burger
                 {
                     BurgerId = orderLineId,
@@ -37,12 +39,54 @@ namespace ForkJoint.Tests
                     Cheese = true,
                 }
             });
+
+            Assert.That(response.Message.OrderId, Is.EqualTo(orderId));
+            Assert.That(response.Message.OrderLineId, Is.EqualTo(orderLineId));
+            Assert.That(response.Message.Burger.Cheese, Is.True);
+            Assert.That(response.Message.Burger.Weight, Is.EqualTo(1.0m));
+        }
+
+        [Test]
+        public async Task Should_fault()
+        {
+            var orderId = NewId.NextGuid();
+            var orderLineId = NewId.NextGuid();
+
+            var scope = Provider.CreateScope();
+
+            var client = scope.ServiceProvider.GetRequiredService<IRequestClient<OrderBurger>>();
+
+            try
+            {
+                await client.GetResponse<BurgerCompleted>(new
+                {
+                    OrderId = orderId,
+                    OrderLineId = orderLineId,
+                    Burger = new Burger
+                    {
+                        BurgerId = orderLineId,
+                        Weight = 1.0m,
+                        Cheese = true,
+                        Lettuce = true
+                    }
+                });
+
+                Assert.Fail("Should have thrown");
+            }
+            catch (RequestFaultException exception)
+            {
+                Assert.That(exception.Fault.Host, Is.Not.Null);
+                Assert.That(exception.Message, Contains.Substring("lettuce"));
+            }
         }
 
         protected override void ConfigureServices(IServiceCollection collection)
         {
             collection.AddSingleton<IGrill, Grill>();
             collection.AddScoped<IItineraryPlanner<OrderBurger>, BurgerItineraryPlanner>();
+
+            collection.AddFuture<BurgerFuture>();
+            collection.AddFuture<OnionRingsFuture>();
         }
 
         protected override void ConfigureMassTransit(IServiceCollectionBusConfigurator configurator)
@@ -51,12 +95,6 @@ namespace ForkJoint.Tests
 
             configurator.AddRequestClient<OrderBurger>();
             configurator.AddRequestClient<OrderOnionRings>();
-        }
-
-        protected override void ConfigureInMemoryBus(IInMemoryBusFactoryConfigurator configurator)
-        {
-            configurator.FutureEndpoint<BurgerFuture, OrderBurger>(Provider);
-            configurator.FutureEndpoint<OnionRingsFuture, OrderOnionRings>(Provider);
         }
     }
 }

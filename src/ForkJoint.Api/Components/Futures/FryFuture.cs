@@ -1,10 +1,7 @@
 namespace ForkJoint.Api.Components.Futures
 {
-    using System.Threading.Tasks;
-    using Automatonymous;
     using Contracts;
     using ForkJoint.Components;
-    using MassTransit;
 
 
     public class FryFuture :
@@ -13,21 +10,8 @@ namespace ForkJoint.Api.Components.Futures
         public FryFuture()
         {
             Event(() => FutureRequested, x => x.CorrelateById(context => context.Message.OrderLineId));
-        }
 
-        protected override Task<CookFry> CreateCommand(ConsumeEventContext<FutureState, OrderFry> context)
-        {
-            return context.Init<CookFry>(new
-            {
-                context.Data.OrderId,
-                context.Data.OrderLineId,
-                context.Data.Size
-            });
-        }
-
-        protected override Task<FryCompleted> CreateCompleted(ConsumeEventContext<FutureState, FryReady> context)
-        {
-            return Init<FryReady, FryCompleted>(context, new {Description = $"{context.Data.Size} Fries"});
+            Response(x => x.Init(context => new {Description = $"{context.Message.Size} Fries"}));
         }
     }
 }
