@@ -1,32 +1,56 @@
 namespace ForkJoint.Api.Components.Futures
 {
-    using Automatonymous;
     using Contracts;
-    using ForkJoint.Components;
-    using FutureActivities;
     using MassTransit;
+    using MassTransit.Futures;
 
 
-    // ReSharper disable UnassignedGetOnlyAutoProperty
-    // ReSharper disable MemberCanBePrivate.Global
     public class FryShakeFuture :
-        OrderLineFuture<OrderFryShake, FryShakeCompleted, Fault<OrderFryShake>>
+        Future<OrderFryShake, FryShakeCompleted>
     {
         public FryShakeFuture()
         {
-            Event(() => FutureRequested, x => x.CorrelateById(context => context.Message.OrderLineId));
+            ConfigureCommand(x => x.CorrelateById(context => context.Message.OrderLineId));
 
-            Initially(
-                When(FutureRequested)
-                    .Activity(x => x.OfType<OrderFryActivity>())
-                    .Activity(x => x.OfType<OrderShakeActivity>())
-            );
+            SendRequest<OrderFry>(x =>
+                {
+                    x.UsingRequestInitializer(context => new
+                    {
+                        OrderId = context.Instance.CorrelationId,
+                        OrderLineId = InVar.Id,
+                        context.Message.Size,
+                    });
 
-            Response(x => x.Init(context =>
+                    x.TrackPendingRequest(message => message.OrderLineId);
+                })
+                .OnResponseReceived<FryCompleted>(x =>
+                {
+                    x.CompletePendingRequest(message => message.OrderLineId);
+                });
+
+            SendRequest<OrderShake>(x =>
+                {
+                    x.UsingRequestInitializer(context => new
+                    {
+                        OrderId = context.Instance.CorrelationId,
+                        OrderLineId = InVar.Id,
+                        context.Message.Flavor,
+                        context.Message.Size,
+                    });
+
+                    x.TrackPendingRequest(message => message.OrderLineId);
+                })
+                .OnResponseReceived<ShakeCompleted>(x =>
+                {
+                    x.CompletePendingRequest(message => message.OrderLineId);
+                });
+
+
+            WhenAllCompleted(x => x.SetCompletedUsingInitializer(context =>
             {
-                var message = context.Instance.GetRequest<OrderFryShake>();
+                var message = context.Instance.GetCommand<OrderFryShake>();
 
-                return new {Description = $"{message.Size} {message.Flavor} FryShake"};
+                return new {Description = $"{message.Size} {message.Flavor} FryShake({context.Instance.Results.Count})"};
             }));
         }
     }
