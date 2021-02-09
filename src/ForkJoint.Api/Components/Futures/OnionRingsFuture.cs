@@ -1,17 +1,21 @@
 namespace ForkJoint.Api.Components.Futures
 {
     using Contracts;
-    using ForkJoint.Components;
+    using MassTransit.Futures;
 
 
     public class OnionRingsFuture :
-        RequestFuture<OrderOnionRings, OnionRingsCompleted, CookOnionRings, OnionRingsReady>
+        Future<OrderOnionRings, OnionRingsCompleted>
     {
         public OnionRingsFuture()
         {
-            Event(() => FutureRequested, x => x.CorrelateById(context => context.Message.OrderLineId));
+            ConfigureCommand(x => x.CorrelateById(context => context.Message.OrderLineId));
 
-            Response(x => x.Init(context => new {Description = $"{context.Message.Quantity} Onion Rings"}));
+            SendRequest<CookOnionRings>()
+                .OnResponseReceived<OnionRingsReady>(x =>
+                {
+                    x.SetCompletedUsingInitializer(context => new {Description = $"{context.Message.Quantity} Onion Rings"});
+                });
         }
     }
 }
