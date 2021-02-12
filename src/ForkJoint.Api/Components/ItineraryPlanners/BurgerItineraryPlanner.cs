@@ -8,7 +8,6 @@ namespace ForkJoint.Api.Components.ItineraryPlanners
     using MassTransit.Courier;
     using MassTransit.Futures;
 
-
     public class BurgerItineraryPlanner :
         IItineraryPlanner<OrderBurger>
     {

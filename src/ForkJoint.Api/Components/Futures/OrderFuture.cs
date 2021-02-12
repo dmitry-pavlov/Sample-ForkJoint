@@ -7,7 +7,6 @@ namespace ForkJoint.Api.Components.Futures
     using MassTransit;
     using MassTransit.Futures;
 
-
     public class OrderFuture :
         Future<SubmitOrder, OrderCompleted, OrderFaulted>
     {
@@ -42,7 +41,6 @@ namespace ForkJoint.Api.Components.Futures
                     x.TrackPendingRequest(message => message.OrderLineId);
                 })
                 .OnResponseReceived<FryShakeCompleted>(x => x.CompletePendingRequest(message => message.OrderLineId));
-
 
             WhenAllCompleted(r => r.SetCompletedUsingInitializer(context => new
             {

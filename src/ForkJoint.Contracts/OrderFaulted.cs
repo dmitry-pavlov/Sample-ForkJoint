@@ -14,4 +14,9 @@ namespace ForkJoint.Contracts
 
         IDictionary<Guid, Fault<OrderLine>> LinesFaulted { get; }
     }
+    public interface ChainFaulted :
+        FutureFaulted
+    {
+        Guid ChainId { get; }
+    }
 }

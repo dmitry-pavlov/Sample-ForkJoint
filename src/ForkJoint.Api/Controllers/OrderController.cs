@@ -1,4 +1,6 @@
-﻿namespace ForkJoint.Api.Controllers
+﻿using System;
+
+namespace ForkJoint.Api.Controllers
 {
     using System.Linq;
     using System.Threading.Tasks;
@@ -20,16 +22,33 @@
         {
             _client = client;
         }
+        
+        [HttpPost("{chainId:guid}")]
+        public async Task<IActionResult> TriggerChain(
+            [FromRoute] Guid chainId,
+            [FromServices] IRequestClient<TriggerChain> client)
+        {
+            try
+            {
+                Response response = await client.GetResponse<ChainStatus>(new
+                {
+                    ChainId = chainId
+                });
 
-        /// <summary>
-        /// Submits an order
-        /// <param name="order">The order model</param>
-        /// <response code="200">The order has been completed</response>
-        /// <response code="202">The order has been accepted but not yet completed</response>
-        /// <response code="400">The order could not be completed</response>
-        /// </summary>
-        /// <param name="order"></param>
-        /// <returns></returns>
+                switch (response)
+                {
+                    case (_, ChainStatus status):
+                        return Ok(status);
+                    default:
+                        return BadRequest(response);
+                }
+            }
+            catch (RequestTimeoutException)
+            {
+                return Accepted($"Chain {chainId} is being executed... try again?");
+            }
+        }
+
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status202Accepted)]

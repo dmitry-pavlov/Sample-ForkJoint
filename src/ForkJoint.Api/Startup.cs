@@ -13,8 +13,6 @@ namespace ForkJoint.Api
     using MassTransit;
     using MassTransit.EntityFrameworkCoreIntegration;
     using MassTransit.Futures;
-    using Microsoft.ApplicationInsights.DependencyCollector;
-    using Microsoft.ApplicationInsights.Extensibility;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Diagnostics.HealthChecks;
     using Microsoft.AspNetCore.Hosting;
@@ -51,18 +49,6 @@ namespace ForkJoint.Api
             services.TryAddSingleton<IGrill, Grill>();
             services.TryAddSingleton<IFryer, Fryer>();
             services.TryAddSingleton<IShakeMachine, ShakeMachine>();
-
-            services.AddApplicationInsightsTelemetry(options =>
-            {
-                options.EnableDependencyTrackingTelemetryModule = true;
-            });
-            services.AddApplicationInsightsTelemetryProcessor<NoSqlTelemetryProcessor>();
-
-            services.ConfigureTelemetryModule<DependencyTrackingTelemetryModule>((module, o) =>
-            {
-                module.IncludeDiagnosticSourceActivities.Add("MassTransit");
-            });
-            services.AddSingleton<ITelemetryInitializer, HttpDependenciesParsingTelemetryInitializer>();
 
             services.AddDbContext<ForkJointSagaDbContext>(builder =>
                 builder.UseSqlServer(GetConnectionString(), m =>

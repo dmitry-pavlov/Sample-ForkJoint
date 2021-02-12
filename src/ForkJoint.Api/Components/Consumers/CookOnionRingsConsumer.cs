@@ -5,7 +5,6 @@ namespace ForkJoint.Api.Components.Consumers
     using MassTransit;
     using Services;
 
-
     public class CookOnionRingsConsumer :
         IConsumer<CookOnionRings>
     {

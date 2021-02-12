@@ -3,7 +3,6 @@ namespace ForkJoint.Contracts
     using System;
     using System.Text;
 
-
     public record Burger
     {
         public Guid BurgerId { get; init; }
